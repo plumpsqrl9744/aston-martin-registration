@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
@@ -29,21 +29,21 @@ const carModels: CarModel[] = [
     name: "DB12 Volante",
     image: "/models/db12-volante.png",
   },
-  { id: "dbx707", name: "dbx707", image: "/models/dbx707.png" },
-  { id: "valhalla", name: "valhalla", image: "/models/valhalla.png" },
+  { id: "dbx707", name: "DBX707", image: "/models/dbx707.png" },
+  { id: "valhalla", name: "Valhalla", image: "/models/valhalla.png" },
   {
     id: "vanquish-coupe",
-    name: "vanquish coupe",
+    name: "Vanquish Coupe",
     image: "/models/vanquish-coupe.png",
   },
   {
     id: "vanquish-volante",
-    name: "vanquish volante",
+    name: "Vanquish Volante",
     image: "/models/vanquish-volante.png",
   },
   {
     id: "vantage-coupe",
-    name: "vantage coupe",
+    name: "Vantage Coupe",
     image: "/models/vantage-coupe.png",
   },
   {
@@ -52,11 +52,6 @@ const carModels: CarModel[] = [
     image: "/models/vantage-roadster.png",
   },
 ];
-
-console.log(
-  "Image paths:",
-  carModels.map((model) => model.image)
-);
 
 async function submitEventForm(data: FormValues) {
   const response = await fetch("/api/submit-to-sheets", {
@@ -76,7 +71,7 @@ async function submitEventForm(data: FormValues) {
 
 type RadioOptionProps = {
   checked: boolean;
-  value: "male" | "female";
+  value?: "male" | "female";
 };
 
 // 전화번호 포맷팅 함수 수정
@@ -95,34 +90,9 @@ const formatPhoneNumber = (value: string) => {
   )}-${phoneNumber.slice(7, 11)}`;
 };
 
-// 체크박스 스타일 추가
-const checkboxClassName = `
-  form-checkbox
-  h-5
-  w-5
-  text-[#00665e]
-  border-2
-  border-gray-200
-  rounded-sm
-  transition-all
-  duration-200
-  ease-in-out
-  focus:ring-0
-  focus:ring-offset-0
-  hover:border-[#00665e]
-  checked:bg-[#00665e]
-  checked:border-[#00665e]
-  cursor-pointer
-`;
-
 export default function Home() {
-  const [isMounted, setIsMounted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>("");
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   const {
     register,
@@ -136,12 +106,7 @@ export default function Home() {
     },
   });
 
-  const {
-    mutate,
-    isPending: isLoading,
-    isError,
-    error,
-  } = useMutation({
+  const { mutate, isPending: isLoading } = useMutation({
     mutationFn: submitEventForm,
     onSuccess: () => {
       setSubmitted(true);
@@ -153,8 +118,57 @@ export default function Home() {
   });
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
-    console.log("제출된 데이터:", data);
-    mutate(data); // React Query의 useMutation으로 데이터 전송
+    // 클라이언트 ID 생성 (브라우저 지문 간단 버전)
+    const generateClientId = () => {
+      const nav = window.navigator;
+      const screen = window.screen;
+      const guid = nav.userAgent + screen.height + screen.width + nav.language;
+      return btoa(guid).substring(0, 32); // 간단한 해시
+    };
+
+    // 설문 제출 횟수 체크
+    const checkSubmissionLimit = () => {
+      const clientId = generateClientId();
+      const submissionKey = `survey_submissions_${clientId}`;
+      const submissionsStr = localStorage.getItem(submissionKey);
+
+      if (!submissionsStr) {
+        return { allowed: true };
+      }
+
+      const submissions = JSON.parse(submissionsStr);
+
+      // 1년 전 날짜 계산
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      // 지난 1년간의 제출만 필터링
+      const recentSubmissions = submissions.filter(
+        (timestamp: string) => new Date(timestamp) > oneYearAgo
+      );
+
+      return {
+        allowed: recentSubmissions.length < 5,
+        count: recentSubmissions.length,
+      };
+    };
+
+    const submissionCheck = checkSubmissionLimit();
+    if (!submissionCheck.allowed) {
+      alert(
+        `1년 동안 최대 5회까지만 설문 조사에 참여할 수 있습니다. 현재 ${submissionCheck.count}회 참여했습니다.`
+      );
+      return;
+    }
+
+    // 클라이언트 ID를 폼 데이터에 추가
+    const dataWithClientId = {
+      ...data,
+      clientId: generateClientId(),
+    };
+
+    // 기존 mutate 함수 호출 수정
+    mutate(dataWithClientId);
   };
 
   if (submitted) {
@@ -183,39 +197,22 @@ export default function Home() {
 
   const inputClassName = `
     form-input
-    h-10
+    h-11
     w-full
     px-0
-    sm:text-sm
-    text-gray-900
-    placeholder-gray-400
+    text-gray-800
+    placeholder-gray-500
     bg-transparent
     border-0
     border-b-2
-    border-gray-200
+    border-gray-300
     focus:ring-0
     focus:border-[#00665e]
     transition-colors
     outline-none
     hover:border-[#00665e]/50
+    font-medium
   `;
-
-  const radioClassName = `form-radio focus:ring-0 focus:ring-offset-0 h-5 w-5 text-gray-900 border-gray-300 outline-none cursor-pointer ${
-    isMounted ? "mounted" : ""
-  }`;
-
-  const CheckIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <circle cx={12} cy={12} r={12} fill="#fff" opacity="0.2" />
-      <path
-        d="M7 13l3 3 7-7"
-        stroke="#fff"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 
   const isFormValid = () => {
     const values = watch();
@@ -225,7 +222,7 @@ export default function Home() {
       values.gender &&
       values.phoneNumber &&
       values.email &&
-      selectedModel && // selectedModel 상태값으로도 체크
+      selectedModels.length > 0 &&
       values.interestedModel &&
       values.privacyAgreement &&
       Object.keys(errors).length === 0
@@ -233,29 +230,29 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <Image
-            src="/logo.png"
-            alt="Aston Martin Logo"
-            width={350}
-            height={60}
-            priority
-            className="mx-auto"
-          />
-          <h1 className="text-3xl font-extrabold text-black sm:text-4xl font-aston">
-            Aston Martin Test Drive Event
-          </h1>
-          <p className="mt-3 text-xl text-black">
-            Discover the Art of Performance
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-white shadow-xl rounded-xl overflow-hidden">
+          <div className="relative h-32 bg-gradient-to-r from-[#00665e] to-[#00897b] flex items-center justify-center">
+            <div className="absolute inset-0 opacity-10 bg-pattern"></div>
+            <Image
+              src="/logo.png"
+              alt="Aston Martin"
+              width={180}
+              height={60}
+              className="relative z-10 object-contain"
+            />
+          </div>
 
-        <div className="bg-white shadow overflow-hidden rounded-lg">
-          <form onSubmit={handleSubmit(onSubmit)} className="px-8 py-8 sm:p-10">
+          <div className="p-6 sm:p-10">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">
+              아스톤 마틴 시승 신청
+            </h1>
+            <p className="text-lg text-gray-700 mb-8">
+              아스톤 마틴의 럭셔리한 드라이빙 경험을 직접 체험해보세요.
+            </p>
+
             <div className="grid grid-cols-1 gap-y-8 gap-x-8 sm:grid-cols-2">
-              {/* 국문 성함 */}
               <div>
                 <label
                   htmlFor="koreanName"
@@ -280,7 +277,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 영문 성함 */}
               <div>
                 <label
                   htmlFor="englishName"
@@ -305,7 +301,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 성별 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   성별 <span className="text-red-500">*</span>
@@ -322,7 +317,7 @@ export default function Home() {
                       value="male"
                       className="flex items-center"
                     >
-                      {({ checked }: RadioOptionProps) => (
+                      {({ checked }) => (
                         <>
                           <input
                             type="radio"
@@ -341,7 +336,7 @@ export default function Home() {
                       value="female"
                       className="flex items-center"
                     >
-                      {({ checked }: RadioOptionProps) => (
+                      {({ checked }) => (
                         <>
                           <input
                             type="radio"
@@ -364,7 +359,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 핸드폰 번호 */}
               <div>
                 <label
                   htmlFor="phoneNumber"
@@ -401,7 +395,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 이메일 주소 */}
               <div className="sm:col-span-2">
                 <label
                   htmlFor="email"
@@ -431,70 +424,87 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 관심 차종 */}
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-800 mb-3">
                   관심 차종 <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="mt-3 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
                   {carModels.map((model) => (
-                    <div
-                      key={model.id}
-                      onClick={() => {
-                        setSelectedModel(model.id);
-                        setValue("interestedModel", model.id); // 여기서 form 값도 함께 업데이트
-                      }}
-                      className={`relative rounded-lg border-2 cursor-pointer transition-all overflow-hidden ${
-                        selectedModel === model.id
-                          ? "border-[#00665e] ring-[#00665e]"
-                          : "border-transparent hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="relative w-full pt-[75%]">
-                        <Image
-                          src={model.image}
-                          alt={model.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="absolute inset-0 object-contain w-full h-full transition-all duration-300 hover:scale-105"
-                        />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none"></div>
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <h3 className="text-white font-medium text-sm sm:text-base font-racing">
-                          {model.name}
-                        </h3>
-                      </div>
-                      <input
-                        type="radio"
-                        className="sr-only"
-                        id={`model-${model.id}`}
-                        value={model.id}
-                        {...register("interestedModel", {
-                          required: "관심 차종을 선택해주세요",
-                        })}
-                        checked={selectedModel === model.id}
-                        onChange={(e) => {
-                          setSelectedModel(e.target.value);
-                          setValue("interestedModel", e.target.value);
+                    <div key={model.id} className="relative">
+                      <div
+                        className={`
+                          border rounded-lg p-4 cursor-pointer transition-all duration-300
+                          shadow-sm hover:shadow-md
+                          ${
+                            selectedModels.includes(model.id)
+                              ? "border-[#00665e] bg-gradient-to-br from-white to-[#00665e]/5"
+                              : "border-gray-200 hover:border-[#00665e]/30 bg-white"
+                          }
+                        `}
+                        onClick={() => {
+                          const newSelectedModels = selectedModels.includes(
+                            model.id
+                          )
+                            ? selectedModels.filter((id) => id !== model.id)
+                            : [...selectedModels, model.id];
+
+                          setSelectedModels(newSelectedModels);
+                          setValue(
+                            "interestedModel",
+                            newSelectedModels.join(",")
+                          );
                         }}
-                      />
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className=" rounded-lg w-full mb-3 flex justify-center items-center h-28">
+                            <Image
+                              src={model.image}
+                              alt={model.name}
+                              width={160}
+                              height={100}
+                              className="object-contain transition-all duration-500 hover:scale-105"
+                            />
+                          </div>
+                          <span className="block text-sm font-bold text-gray-800">
+                            {model.name}
+                          </span>
+                        </div>
+                        {selectedModels.includes(model.id) && (
+                          <div className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full bg-[#00665e] text-white shadow-sm">
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
                 {errors.interestedModel && (
-                  <p className="mt-2 text-sm text-red-500">
+                  <p className="mt-1 text-sm text-red-500">
                     {errors.interestedModel.message}
                   </p>
                 )}
               </div>
 
-              {/* 개인정보 수집 및 이용동의 */}
               <div className="sm:col-span-2 mt-4">
                 <div className="bg-gray-50 p-4 rounded-md mb-4">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">
-                    개인정보 수집 및 이용 동의
-                  </h3>
+                  <div className="flex">
+                    <h3 className="text-sm font-medium text-gray-900 mb-2">
+                      개인정보 수집 및 이용 동의
+                    </h3>
+                    <span className="text-red-500 ml-1">*</span>
+                  </div>
                   <div className="text-xs text-gray-500 h-24 overflow-y-auto p-2 border border-gray-200 rounded bg-white">
                     <p className="mb-2">
                       아스톤 마틴은 시승 서비스 제공을 위해 아래와 같이
@@ -567,7 +577,6 @@ export default function Home() {
                     >
                       개인정보 수집 및 이용에 동의합니다
                     </label>
-                    <span className="text-red-500 ml-1">*</span>
                   </div>
                 </div>
                 {errors.privacyAgreement && (
@@ -581,9 +590,8 @@ export default function Home() {
             <div className="mt-8">
               <button
                 type="submit"
-                // disabled={isLoading || !isFormValid()}
-                className={`
-                  w-full
+                disabled={isLoading || !isFormValid()}
+                className={`                  w-full
                   flex
                   justify-center
                   py-4
@@ -621,7 +629,7 @@ export default function Home() {
                 {isLoading ? "처리중..." : "신청하기"}
               </button>
             </div>
-          </form>
+          </div>
         </div>
 
         <div className="mt-8 text-center text-gray-500 text-sm">
