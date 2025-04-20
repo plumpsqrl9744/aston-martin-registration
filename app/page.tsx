@@ -59,7 +59,7 @@ console.log(
 );
 
 async function submitEventForm(data: FormValues) {
-  const response = await fetch("/api/event-reception", {
+  const response = await fetch("/api/submit-to-sheets", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -153,7 +153,8 @@ export default function Home() {
   });
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
-    console.log("asd", data);
+    console.log("제출된 데이터:", data);
+    mutate(data); // React Query의 useMutation으로 데이터 전송
   };
 
   if (submitted) {
