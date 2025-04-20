@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { aston } from "./fonts";
 import { Providers } from "./providers";
+import { ToastProvider } from "@/app/components/toast";
+import { ClientToastContainer } from "@/app/components/toast";
 
 export const metadata: Metadata = {
   title: "Aston Martin Korea | Test Drive Event Registration",
@@ -19,9 +21,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={aston.variable}>
+    <html lang="ko" className={aston.variable} suppressHydrationWarning>
       <body className={aston.className}>
-        <Providers>{children}</Providers>
+        <ToastProvider>
+          <Providers>
+            {children}
+            <ClientToastContainer />
+          </Providers>
+        </ToastProvider>
       </body>
     </html>
   );

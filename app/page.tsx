@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { RadioGroup, Switch } from "@headlessui/react";
+import { useToast } from "@/app/components/toast";
 
 type FormValues = {
   koreanName: string;
@@ -66,7 +67,9 @@ async function submitEventForm(data: FormValues) {
     throw new Error("폼 제출에 실패했습니다.");
   }
 
-  return response.json();
+  const result = await response.json();
+
+  return result;
 }
 
 type RadioOptionProps = {
@@ -90,9 +93,164 @@ const formatPhoneNumber = (value: string) => {
   )}-${phoneNumber.slice(7, 11)}`;
 };
 
+// Toast 관련 타입 추가
+type ToastType = "success" | "error" | "warning" | "info";
+
+type Toast = {
+  id: number;
+  message: string;
+  type: ToastType;
+};
+
+// Toast 컴포넌트 정의
+const ToastContainer = () => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = (message: string, type: ToastType = "info") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    // 3초 후에 자동으로 제거
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3000);
+  };
+
+  return (
+    <div className="fixed inset-0 pointer-events-none flex items-end justify-center px-4 py-6 sm:items-start sm:justify-end z-[9999]">
+      <div className="flex flex-col items-end space-y-4 w-full max-w-sm">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`
+              pointer-events-auto
+              w-full
+              px-6 py-4 rounded-md shadow-xl
+              transform transition-all duration-300 ease-in-out
+              border-l-4
+              backdrop-filter backdrop-blur-md bg-opacity-95
+              ${
+                toast.type === "success"
+                  ? "bg-[#00665e] text-white border-[#00897b]"
+                  : toast.type === "error"
+                  ? "bg-white text-red-800 border-red-600"
+                  : toast.type === "warning"
+                  ? "bg-white text-amber-800 border-amber-600"
+                  : "bg-[#00665e] text-white border-[#00897b]"
+              }
+            `}
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                {toast.type === "success" && (
+                  <svg
+                    className="h-5 w-5 text-white"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                {toast.type === "error" && (
+                  <svg
+                    className="h-5 w-5 text-red-600"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                {toast.type === "warning" && (
+                  <svg
+                    className="h-5 w-5 text-amber-600"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                {toast.type === "info" && (
+                  <svg
+                    className="h-5 w-5 text-white"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2h.01a1 1 0 000-2H9z"
+                      clipRule="evenodd"
+                    />
+                    <path d="M9 13h2v2H9v-2z" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium">{toast.message}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <div className="-mx-1.5 -my-1.5">
+                  <button
+                    onClick={() =>
+                      setToasts((prev) => prev.filter((t) => t.id !== toast.id))
+                    }
+                    className="inline-flex rounded-md p-1.5 text-gray-100 hover:bg-[#005349] focus:outline-none"
+                  >
+                    <span className="sr-only">닫기</span>
+                    <svg
+                      className="h-4 w-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// 별도의 ToastManager 컴포넌트 추가
+const ToastManager = () => {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+
+    return () => setIsMounted(false);
+  }, []);
+
+  if (!isMounted) return null;
+
+  return <ToastContainer />;
+};
+
 export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+
+  // useToast 훅 사용
+  const { showToast } = useToast();
 
   const {
     register,
@@ -109,24 +267,40 @@ export default function Home() {
   const { mutate, isPending: isLoading } = useMutation({
     mutationFn: submitEventForm,
     onSuccess: () => {
+      incrementSubmissionCount();
       setSubmitted(true);
+      showToast("시승 신청이 성공적으로 접수되었습니다.", "success");
     },
-    onError: (error) => {
-      console.error("폼 제출 중 오류 발생:", error);
-      alert("폼 제출에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    onError: () => {
+      showToast("폼 제출에 실패했습니다. 잠시 후 다시 시도해주세요.", "error");
     },
   });
 
-  const onSubmit: SubmitHandler<FormValues> = (data) => {
-    // 클라이언트 ID 생성 (브라우저 지문 간단 버전)
-    const generateClientId = () => {
-      const nav = window.navigator;
-      const screen = window.screen;
-      const guid = nav.userAgent + screen.height + screen.width + nav.language;
-      return btoa(guid).substring(0, 32); // 간단한 해시
-    };
+  const incrementSubmissionCount = () => {
+    try {
+      const clientId = generateClientId();
 
-    // 설문 제출 횟수 체크
+      const submissionKey = `survey_submissions_${clientId}`;
+      const submissionsStr = localStorage.getItem(submissionKey);
+
+      const submissions = submissionsStr ? JSON.parse(submissionsStr) : [];
+
+      submissions.push(new Date().toISOString());
+
+      localStorage.setItem(submissionKey, JSON.stringify(submissions));
+    } catch (error) {
+      console.error("제출 횟수 업데이트 중 오류 발생:", error);
+    }
+  };
+
+  const generateClientId = () => {
+    const nav = window.navigator;
+    const screen = window.screen;
+    const guid = nav.userAgent + screen.height + screen.width + nav.language;
+    return btoa(guid).substring(0, 32); // 간단한 해시
+  };
+
+  const onSubmit: SubmitHandler<FormValues> = (data) => {
     const checkSubmissionLimit = () => {
       const clientId = generateClientId();
       const submissionKey = `survey_submissions_${clientId}`;
@@ -155,20 +329,40 @@ export default function Home() {
 
     const submissionCheck = checkSubmissionLimit();
     if (!submissionCheck.allowed) {
-      alert(
-        `1년 동안 최대 5회까지만 설문 조사에 참여할 수 있습니다. 현재 ${submissionCheck.count}회 참여했습니다.`
+      showToast(
+        `1년 동안 최대 5회까지만 설문 조사에 참여할 수 있습니다.`,
+        "warning"
       );
       return;
     }
 
     // 클라이언트 ID를 폼 데이터에 추가
+    const clientId = generateClientId();
     const dataWithClientId = {
       ...data,
-      clientId: generateClientId(),
+      clientId: clientId,
+    };
+
+    // 먼저 제출 완료시 localStorage를 업데이트하는 핸들러 정의
+    const handleSuccessfulSubmission = () => {
+      try {
+        const submissionKey = `survey_submissions_${clientId}`;
+        const submissionsStr = localStorage.getItem(submissionKey);
+        const submissions = submissionsStr ? JSON.parse(submissionsStr) : [];
+        submissions.push(new Date().toISOString());
+        localStorage.setItem(submissionKey, JSON.stringify(submissions));
+      } catch (error) {
+        console.error("로컬 스토리지 업데이트 실패:", error);
+      }
     };
 
     // 기존 mutate 함수 호출 수정
-    mutate(dataWithClientId);
+    mutate(dataWithClientId, {
+      onSuccess: () => {
+        handleSuccessfulSubmission();
+        setSubmitted(true);
+      },
+    });
   };
 
   if (submitted) {
@@ -231,404 +425,424 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white shadow-xl rounded-xl overflow-hidden">
-          <div className="relative h-32 bg-gradient-to-r from-[#00665e] to-[#00897b] flex items-center justify-center">
-            <div className="absolute inset-0 opacity-10 bg-pattern"></div>
-            <Image
-              src="/logo.png"
-              alt="Aston Martin"
-              width={180}
-              height={60}
-              className="relative z-10 object-contain"
-            />
+      <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-0 sm:py-12">
+        <div className="bg-white shadow-xl rounded-0 sm:rounded-xl overflow-hidden">
+          {/* 깔끔한 세로형 헤더 디자인 */}
+          <div className="bg-gradient-to-r from-[#00665e] to-[#005349] px-4 sm:px-6 pb-6 sm:pb-8">
+            <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
+              {/* 로고 */}
+              <div>
+                <Image
+                  src="/logo.png"
+                  alt="Aston Martin"
+                  width={200}
+                  height={45}
+                  className="h-auto"
+                  priority
+                />
+              </div>
+
+              {/* 타이틀 및 설명 */}
+              <h1 className="text-3xl font-medium text-white mb-6 tracking-wide">
+                Test Drive Request for Aston Martin
+              </h1>
+              {/* <div className="h-px w-16 bg-white/30 my-3"></div> */}
+              <p className="text-white/90 text-lg max-w-xl">
+                Experience the luxury of driving an Aston Martin firsthand.
+              </p>
+            </div>
           </div>
 
-          <div className="p-6 sm:p-10">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">
-              아스톤 마틴 시승 신청
-            </h1>
-            <p className="text-lg text-gray-700 mb-8">
-              아스톤 마틴의 럭셔리한 드라이빙 경험을 직접 체험해보세요.
-            </p>
-
-            <div className="grid grid-cols-1 gap-y-8 gap-x-8 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="koreanName"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  국문 성함 <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    id="koreanName"
-                    {...register("koreanName", {
-                      required: "국문 성함을 입력해주세요",
-                    })}
-                    className={inputClassName}
-                  />
-                  {errors.koreanName && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.koreanName.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="englishName"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  영문 성함 <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="text"
-                    id="englishName"
-                    {...register("englishName", {
-                      required: "영문 성함을 입력해주세요",
-                    })}
-                    className={inputClassName}
-                  />
-                  {errors.englishName && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.englishName.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  성별 <span className="text-red-500">*</span>
-                </label>
-                <RadioGroup
-                  value={watch("gender") || ""}
-                  onChange={(value: "male" | "female") =>
-                    setValue("gender", value)
-                  }
-                  className="mt-2"
-                >
-                  <div className="space-x-6 flex h-12 items-center">
-                    <RadioGroup.Option
-                      value="male"
-                      className="flex items-center"
-                    >
-                      {({ checked }) => (
-                        <>
-                          <input
-                            type="radio"
-                            checked={checked}
-                            readOnly
-                            className="form-radio h-5 w-5 text-black border-gray-300 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                          />
-                          <label className="ml-3 block text-sm text-gray-700">
-                            남성
-                          </label>
-                        </>
-                      )}
-                    </RadioGroup.Option>
-
-                    <RadioGroup.Option
-                      value="female"
-                      className="flex items-center"
-                    >
-                      {({ checked }) => (
-                        <>
-                          <input
-                            type="radio"
-                            checked={checked}
-                            readOnly
-                            className="form-radio h-5 w-5 text-black border-gray-300 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                          />
-                          <label className="ml-3 block text-sm text-gray-700">
-                            여성
-                          </label>
-                        </>
-                      )}
-                    </RadioGroup.Option>
-                  </div>
-                </RadioGroup>
-                {errors.gender && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.gender.message}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="phoneNumber"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  핸드폰 번호 <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="tel"
-                    id="phoneNumber"
-                    placeholder="010-0000-0000"
-                    maxLength={13}
-                    {...register("phoneNumber", {
-                      required: "핸드폰 번호를 입력해주세요",
-                      pattern: {
-                        value: /^\d{3}-\d{3,4}-\d{4}$/,
-                        message: "010-0000-0000 형식으로 입력해주세요",
-                      },
-                      onChange: (e) => {
-                        const formatted = formatPhoneNumber(
-                          e.target.value.replace(/[^0-9]/g, "")
-                        );
-                        e.target.value = formatted;
-                      },
-                    })}
-                    className={inputClassName}
-                  />
-                  {errors.phoneNumber && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.phoneNumber.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  이메일 주소 <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="email"
-                    id="email"
-                    {...register("email", {
-                      required: "이메일을 입력해주세요",
-                      pattern: {
-                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                        message: "유효한 이메일 주소를 입력해주세요",
-                      },
-                    })}
-                    className={inputClassName}
-                    placeholder="example@email.com"
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-500">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-semibold text-gray-800 mb-3">
-                  관심 차종 <span className="text-red-500">*</span>
-                </label>
-                <div className="mt-3 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {carModels.map((model) => (
-                    <div key={model.id} className="relative">
-                      <div
-                        className={`
-                          border rounded-lg p-4 cursor-pointer transition-all duration-300
-                          shadow-sm hover:shadow-md
-                          ${
-                            selectedModels.includes(model.id)
-                              ? "border-[#00665e] bg-gradient-to-br from-white to-[#00665e]/5"
-                              : "border-gray-200 hover:border-[#00665e]/30 bg-white"
-                          }
-                        `}
-                        onClick={() => {
-                          const newSelectedModels = selectedModels.includes(
-                            model.id
-                          )
-                            ? selectedModels.filter((id) => id !== model.id)
-                            : [...selectedModels, model.id];
-
-                          setSelectedModels(newSelectedModels);
-                          setValue(
-                            "interestedModel",
-                            newSelectedModels.join(",")
-                          );
-                        }}
-                      >
-                        <div className="flex flex-col items-center text-center">
-                          <div className=" rounded-lg w-full mb-3 flex justify-center items-center h-28">
-                            <Image
-                              src={model.image}
-                              alt={model.name}
-                              width={160}
-                              height={100}
-                              className="object-contain transition-all duration-500 hover:scale-105"
-                            />
-                          </div>
-                          <span className="block text-sm font-bold text-gray-800">
-                            {model.name}
-                          </span>
-                        </div>
-                        {selectedModels.includes(model.id) && (
-                          <div className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full bg-[#00665e] text-white shadow-sm">
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {errors.interestedModel && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.interestedModel.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2 mt-4">
-                <div className="bg-gray-50 p-4 rounded-md mb-4">
-                  <div className="flex">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">
-                      개인정보 수집 및 이용 동의
-                    </h3>
-                    <span className="text-red-500 ml-1">*</span>
-                  </div>
-                  <div className="text-xs text-gray-500 h-24 overflow-y-auto p-2 border border-gray-200 rounded bg-white">
-                    <p className="mb-2">
-                      아스톤 마틴은 시승 서비스 제공을 위해 아래와 같이
-                      개인정보를 수집 및 이용합니다.
-                    </p>
-                    <p className="mb-2">
-                      1. 수집항목: 성명(국/영문), 성별, 연락처, 이메일, 관심
-                      차종
-                    </p>
-                    <p className="mb-2">
-                      2. 수집 및 이용목적: 시승 신청 및 서비스 제공, 마케팅 활용
-                    </p>
-                    <p className="mb-2">
-                      3. 보유 및 이용기간: 수집일로부터 3년
-                    </p>
-                    <p>
-                      귀하는 개인정보 수집 및 이용에 대한 동의를 거부할 권리가
-                      있으나, 동의 거부 시 시승 서비스 이용이 제한됩니다.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <Switch
-                    checked={watch("privacyAgreement") || false}
-                    onChange={(checked: boolean) =>
-                      setValue("privacyAgreement", checked)
-                    }
-                    className={`
-                      relative 
-                      inline-flex 
-                      h-5 
-                      w-5 
-                      items-center 
-                      justify-center
-                      rounded-sm
-                      border-2
-                      transition-colors
-                      duration-200
-                      ease-in-out
-                      ${
-                        watch("privacyAgreement")
-                          ? "bg-[#00665e] border-[#00665e]"
-                          : "bg-white border-gray-200 hover:border-[#00665e]"
-                      }
-                    `}
+          {/* 폼 내용 */}
+          <div className="p-4 sm:p-6 md:p-8 lg:p-10">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-6 sm:space-y-8"
+            >
+              <div className="grid grid-cols-1 gap-y-8 gap-x-8 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="koreanName"
+                    className="block text-sm font-medium text-gray-700"
                   >
-                    <span className="sr-only">개인정보 수집 및 이용 동의</span>
-                    {watch("privacyAgreement") && (
-                      <svg
-                        className="h-3 w-3 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+                    국문 성함 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      id="koreanName"
+                      {...register("koreanName", {
+                        required: "국문 성함을 입력해주세요",
+                      })}
+                      className={inputClassName}
+                    />
+                    {errors.koreanName && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.koreanName.message}
+                      </p>
                     )}
-                  </Switch>
-                  <div className="flex items-center">
-                    <label
-                      className="text-sm font-medium text-gray-700 select-none cursor-pointer"
-                      onClick={() =>
-                        setValue("privacyAgreement", !watch("privacyAgreement"))
-                      }
-                    >
-                      개인정보 수집 및 이용에 동의합니다
-                    </label>
                   </div>
                 </div>
-                {errors.privacyAgreement && (
-                  <p className="mt-1 text-sm text-red-500">
-                    {errors.privacyAgreement.message}
-                  </p>
-                )}
-              </div>
-            </div>
 
-            <div className="mt-8">
-              <button
-                type="submit"
-                disabled={isLoading || !isFormValid()}
-                className={`                  w-full
-                  flex
-                  justify-center
-                  py-4
-                  px-4
-                  border
-                  border-[#00665e]
-                  rounded-md
-                  text-sm
-                  font-medium
-                  text-white
-                  ${
-                    isFormValid()
-                      ? "bg-[#00665e]"
-                      : "bg-gray-400 border-gray-400"
-                  }
-                  transition-all
-                  duration-300
-                  ease-in-out
-                  transform
-                  ${
-                    isFormValid()
-                      ? "hover:bg-[#005349] hover:scale-[0.99] active:scale-95"
-                      : ""
-                  }
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-offset-2
-                  focus:ring-[#00665e]
-                  disabled:opacity-50
-                  disabled:cursor-not-allowed
-                  disabled:transform-none
-                  disabled:transition-none
-                `}
-              >
-                {isLoading ? "처리중..." : "신청하기"}
-              </button>
-            </div>
+                <div>
+                  <label
+                    htmlFor="englishName"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    영문 성함 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      id="englishName"
+                      {...register("englishName", {
+                        required: "영문 성함을 입력해주세요",
+                      })}
+                      className={inputClassName}
+                    />
+                    {errors.englishName && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.englishName.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    성별 <span className="text-red-500">*</span>
+                  </label>
+                  <RadioGroup
+                    value={watch("gender") || ""}
+                    onChange={(value: "male" | "female") =>
+                      setValue("gender", value)
+                    }
+                    className="mt-2"
+                  >
+                    <div className="space-x-6 flex h-12 items-center">
+                      <RadioGroup.Option
+                        value="male"
+                        className="flex items-center"
+                      >
+                        {({ checked }) => (
+                          <>
+                            <input
+                              type="radio"
+                              checked={checked}
+                              readOnly
+                              className="form-radio h-5 w-5 text-black border-gray-300 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                            />
+                            <label className="ml-3 block text-sm text-gray-700">
+                              남성
+                            </label>
+                          </>
+                        )}
+                      </RadioGroup.Option>
+
+                      <RadioGroup.Option
+                        value="female"
+                        className="flex items-center"
+                      >
+                        {({ checked }) => (
+                          <>
+                            <input
+                              type="radio"
+                              checked={checked}
+                              readOnly
+                              className="form-radio h-5 w-5 text-black border-gray-300 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                            />
+                            <label className="ml-3 block text-sm text-gray-700">
+                              여성
+                            </label>
+                          </>
+                        )}
+                      </RadioGroup.Option>
+                    </div>
+                  </RadioGroup>
+                  {errors.gender && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.gender.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="phoneNumber"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    핸드폰 번호 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="tel"
+                      id="phoneNumber"
+                      placeholder="010-0000-0000"
+                      maxLength={13}
+                      {...register("phoneNumber", {
+                        required: "핸드폰 번호를 입력해주세요",
+                        pattern: {
+                          value: /^\d{3}-\d{3,4}-\d{4}$/,
+                          message: "010-0000-0000 형식으로 입력해주세요",
+                        },
+                        onChange: (e) => {
+                          const formatted = formatPhoneNumber(
+                            e.target.value.replace(/[^0-9]/g, "")
+                          );
+                          e.target.value = formatted;
+                        },
+                      })}
+                      className={inputClassName}
+                    />
+                    {errors.phoneNumber && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.phoneNumber.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    이메일 주소 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      type="email"
+                      id="email"
+                      {...register("email", {
+                        required: "이메일을 입력해주세요",
+                        pattern: {
+                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                          message: "유효한 이메일 주소를 입력해주세요",
+                        },
+                      })}
+                      className={inputClassName}
+                      placeholder="example@email.com"
+                    />
+                    {errors.email && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.email.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-800 mb-3">
+                    관심 차종 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="mt-3 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {carModels.map((model) => (
+                      <div key={model.id} className="relative">
+                        <div
+                          className={`
+                            border rounded-lg p-4 cursor-pointer transition-all duration-300
+                            shadow-sm hover:shadow-md
+                            ${
+                              selectedModels.includes(model.id)
+                                ? "border-[#00665e] bg-gradient-to-br from-white to-[#00665e]/5"
+                                : "border-gray-200 hover:border-[#00665e]/30 bg-white"
+                            }
+                          `}
+                          onClick={() => {
+                            const newSelectedModels = selectedModels.includes(
+                              model.id
+                            )
+                              ? selectedModels.filter((id) => id !== model.id)
+                              : [...selectedModels, model.id];
+
+                            setSelectedModels(newSelectedModels);
+                            setValue(
+                              "interestedModel",
+                              newSelectedModels.join(",")
+                            );
+                          }}
+                        >
+                          <div className="flex flex-col items-center text-center">
+                            <div className=" rounded-lg w-full mb-3 flex justify-center items-center h-28">
+                              <Image
+                                src={model.image}
+                                alt={model.name}
+                                width={160}
+                                height={100}
+                                className="object-contain transition-all duration-500 hover:scale-105"
+                              />
+                            </div>
+                            <span className="block text-sm font-bold text-gray-800">
+                              {model.name}
+                            </span>
+                          </div>
+                          {selectedModels.includes(model.id) && (
+                            <div className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-full bg-[#00665e] text-white shadow-sm">
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {errors.interestedModel && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.interestedModel.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2 mt-4">
+                  <div className="bg-gray-50 p-4 rounded-md mb-4">
+                    <div className="flex">
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">
+                        개인정보 수집 및 이용 동의
+                      </h3>
+                      <span className="text-red-500 ml-1">*</span>
+                    </div>
+                    <div className="text-xs text-gray-500 h-24 overflow-y-auto p-2 border border-gray-200 rounded bg-white">
+                      <p className="mb-2">
+                        아스톤 마틴은 시승 서비스 제공을 위해 아래와 같이
+                        개인정보를 수집 및 이용합니다.
+                      </p>
+                      <p className="mb-2">
+                        1. 수집항목: 성명(국/영문), 성별, 연락처, 이메일, 관심
+                        차종
+                      </p>
+                      <p className="mb-2">
+                        2. 수집 및 이용목적: 시승 신청 및 서비스 제공, 마케팅
+                        활용
+                      </p>
+                      <p className="mb-2">
+                        3. 보유 및 이용기간: 수집일로부터 3년
+                      </p>
+                      <p>
+                        귀하는 개인정보 수집 및 이용에 대한 동의를 거부할 권리가
+                        있으나, 동의 거부 시 시승 서비스 이용이 제한됩니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <Switch
+                      checked={watch("privacyAgreement") || false}
+                      onChange={(checked: boolean) =>
+                        setValue("privacyAgreement", checked)
+                      }
+                      className={`
+                        relative 
+                        inline-flex 
+                        h-5 
+                        w-5 
+                        items-center 
+                        justify-center
+                        rounded-sm
+                        border-2
+                        transition-colors
+                        duration-200
+                        ease-in-out
+                        ${
+                          watch("privacyAgreement")
+                            ? "bg-[#00665e] border-[#00665e]"
+                            : "bg-white border-gray-200 hover:border-[#00665e]"
+                        }
+                      `}
+                    >
+                      <span className="sr-only">
+                        개인정보 수집 및 이용 동의
+                      </span>
+                      {watch("privacyAgreement") && (
+                        <svg
+                          className="h-3 w-3 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </Switch>
+                    <div className="flex items-center">
+                      <label
+                        className="text-sm font-medium text-gray-700 select-none cursor-pointer"
+                        onClick={() =>
+                          setValue(
+                            "privacyAgreement",
+                            !watch("privacyAgreement")
+                          )
+                        }
+                      >
+                        개인정보 수집 및 이용에 동의합니다
+                      </label>
+                    </div>
+                  </div>
+                  {errors.privacyAgreement && (
+                    <p className="mt-1 text-sm text-red-500">
+                      {errors.privacyAgreement.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <button
+                  type="submit"
+                  disabled={isLoading || !isFormValid()}
+                  className={`w-full
+                    flex
+                    justify-center
+                    py-4
+                    px-4
+                    border
+                    border-[#00665e]
+                    rounded-md
+                    text-sm
+                    font-medium
+                    text-white
+                    ${
+                      isFormValid()
+                        ? "bg-[#00665e]"
+                        : "bg-gray-400 border-gray-400"
+                    }
+                    transition-all
+                    duration-300
+                    ease-in-out
+                    transform
+                    ${
+                      isFormValid()
+                        ? "hover:bg-[#005349] hover:scale-[0.99] active:scale-95"
+                        : ""
+                    }
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-offset-2
+                    focus:ring-[#00665e]
+                    disabled:opacity-50
+                    disabled:cursor-not-allowed
+                    disabled:transform-none
+                    disabled:transition-none
+                  `}
+                >
+                  {isLoading ? "처리중..." : "신청하기"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
 
