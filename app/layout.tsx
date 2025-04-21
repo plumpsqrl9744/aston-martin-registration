@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description:
     "Experience the extraordinary with Aston Martin. Register for an exclusive test drive event and discover the perfect blend of power, beauty and soul.",
   icons: [
-    { rel: "icon", url: "/favicon.ico" },
-    { rel: "apple-touch-icon", url: "/favicon.ico" },
+    { rel: "icon", url: "/logo.png" },
+    { rel: "apple-touch-icon", url: "/logo.png" },
   ],
 };
 

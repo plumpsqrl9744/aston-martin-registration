@@ -689,7 +689,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-8 text-center text-gray-500 text-sm">
+        <div className="py-8 text-center text-gray-500 text-sm">
           © {new Date().getFullYear()} Aston Martin. All rights reserved.
         </div>
       </div>
